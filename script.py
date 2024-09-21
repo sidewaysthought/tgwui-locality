@@ -164,10 +164,6 @@ def ui():
         params["add_date"] = value
         save_settings()
 
-    def update_add_timezone(value):
-        params["add_timezone"] = value
-        save_settings()
-
     def update_timezone(value):
         params["timezone"] = value
         save_settings()
@@ -185,36 +181,37 @@ def ui():
         save_settings()
 
     with gr.Accordion("Locality Settings", open=False):
-        add_time_checkbox = gr.Checkbox(
-            label="Add Current Time", value=params["add_time"]
-        )
-        add_date_checkbox = gr.Checkbox(
-            label="Add Current Date", value=params["add_date"]
-        )
-        add_timezone_checkbox = gr.Checkbox(
-            label="Add Timezone", value=params["add_timezone"]
-        )
-        add_location_checkbox = gr.Checkbox(
-            label="Add Location", value=params["add_location"]
-        )
-        add_weather_checkbox = gr.Checkbox(
-            label="Add Weather", value=params["add_weather"]
-        )
-        temp_unit_dropdown = gr.Dropdown(
-            label="Temperature Unit",
-            choices=["Celsius", "Fahrenheit"],
-            value=params["temp_unit"],
-            interactive=True
-        )
-        timezone_dropdown = gr.Dropdown(
-            label="Select Timezone",
-            choices=pytz.all_timezones,
-            value=params["timezone"]
-        )
+        with gr.Row():
+            with gr.Column():  # First column for date and location
+                add_date_checkbox = gr.Checkbox(
+                    label="Add Current Date", value=params["add_date"]
+                )
+                add_location_checkbox = gr.Checkbox(
+                    label="Add Location", value=params["add_location"]
+                )
+                add_time_checkbox = gr.Checkbox(
+                    label="Add Current Time", value=params["add_time"]
+                )
+                timezone_dropdown = gr.Dropdown(
+                    label="Select Timezone",
+                    choices=pytz.all_timezones,
+                    value=params["timezone"]
+                )
 
+            with gr.Column():  # Second column for time, timezone, weather, and temperature unit
+                add_weather_checkbox = gr.Checkbox(
+                    label="Add Weather", value=params["add_weather"]
+                )
+                temp_unit_dropdown = gr.Dropdown(
+                    label="Temperature Unit",
+                    choices=["Celsius", "Fahrenheit"],
+                    value=params["temp_unit"],
+                    interactive=True
+                )
+
+        # Event handling for UI interactions
         add_time_checkbox.change(update_add_time, add_time_checkbox, None)
         add_date_checkbox.change(update_add_date, add_date_checkbox, None)
-        add_timezone_checkbox.change(update_add_timezone, add_timezone_checkbox, None)
         add_location_checkbox.change(update_add_location, add_location_checkbox, None)
         add_weather_checkbox.change(update_add_weather, add_weather_checkbox, None)
         temp_unit_dropdown.change(update_temp_unit, temp_unit_dropdown, None)
