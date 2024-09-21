@@ -1,20 +1,16 @@
-"""
-This script is an extension for Text Generation WebUI
-"""
-
+import os
 import json
 import datetime
 import pytz
 import geocoder
 import requests
 import gradio as gr
-import os
 
-# Get the path of the current script (script.py)
-script_dir = os.path.dirname(os.path.abspath(__file__))
+# Define extension path (directory where the script is located)
+extension_path = os.path.dirname(os.path.abspath(__file__))
 
-# Define the path for the settings file
-SETTINGS_FILE = "settings.json"
+# Define the path for the settings file relative to the script's location
+SETTINGS_FILE = os.path.join(extension_path, "settings.json")
 
 # Default settings
 default_params = {
@@ -25,6 +21,8 @@ default_params = {
     "add_weather": True,
     "timezone": "UTC"  # Default timezone
 }
+
+params = default_params.copy()
 
 # Open Meteo weather code map
 weather_code_map = {
@@ -58,36 +56,44 @@ weather_code_map = {
     99: "Thunderstorm With Heavy Hail"
 }
 
-params = {
-    "display_name": "Locality",
-    "is_tab": False,
-    "add_time": True,
-    "add_date": True,
-    "add_timezone": True,
-    "add_location": True,
-    "add_weather": True,
-    "timezone": "UTC"
-}
 
 def load_settings():
+    """ Loads settings from settings.json or uses default if file does not exist. """
     if os.path.exists(SETTINGS_FILE):
         with open(SETTINGS_FILE, 'r') as f:
-            return json.load(f)
+            saved_params = json.load(f)
+        params.update(saved_params)
     else:
-        return default_params
-    
+        save_settings()  # Save defaults if settings file doesn't exist yet
+
+
 def save_settings():
+    """ Saves current settings to settings.json. """
     with open(SETTINGS_FILE, 'w') as f:
-        json.dump(params, f)
+        json.dump(params, f, indent=4)
+    current_datetime = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"Settings were saved at {current_datetime}")
+
+
+def setup():
+    """ Initial setup for loading settings and saving defaults if necessary. """
+    if not os.path.exists(SETTINGS_FILE):
+        save_settings()
+    else:
+        load_settings()
+
 
 def get_location():
+    """ Get location information using IP address. """
     try:
         g = geocoder.ip('me')
         return g.city, g.country, g.latlng
     except Exception as e:
         return "Location unavailable", "Unknown", None
 
+
 def get_weather(lat, lon):
+    """ Get weather information for a given latitude and longitude. """
     if not lat or not lon:
         return "Weather unavailable"
     
@@ -105,7 +111,9 @@ def get_weather(lat, lon):
     except Exception as e:
         return "Weather unavailable"
 
+
 def chat_input_modifier(text, visible_text, state):
+    """ Modifies the input text based on the user's settings. """
     additions = []
     now = datetime.datetime.now(pytz.timezone(params["timezone"]))
     
@@ -132,7 +140,9 @@ def chat_input_modifier(text, visible_text, state):
     modified_text = f"{text}\n[{' | '.join(additions)}]" if additions else text
     return modified_text, visible_text
 
+
 def ui():
+    """Creates Gradio UI components."""
     def update_add_time(value):
         params["add_time"] = value
         save_settings()
@@ -157,7 +167,7 @@ def ui():
         params["add_weather"] = value
         save_settings()
 
-    with gr.Accordion("Locality Settings", open=False):  # Render closed by default
+    with gr.Accordion("Locality Settings", open=False):
         add_time_checkbox = gr.Checkbox(
             label="Add Current Time", value=params["add_time"]
         )
@@ -186,4 +196,5 @@ def ui():
         add_weather_checkbox.change(update_add_weather, add_weather_checkbox, None)
         timezone_dropdown.change(update_timezone, timezone_dropdown, None)
 
-params = load_settings()
+
+setup()
