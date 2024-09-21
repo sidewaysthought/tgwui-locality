@@ -19,7 +19,8 @@ default_params = {
     "add_timezone": True,
     "add_location": True,
     "add_weather": True,
-    "timezone": "UTC"  # Default timezone
+    "temp_unit": "Celsius",
+    "timezone": "UTC"
 }
 
 params = default_params.copy()
@@ -64,7 +65,7 @@ def load_settings():
             saved_params = json.load(f)
         params.update(saved_params)
     else:
-        save_settings()  # Save defaults if settings file doesn't exist yet
+        save_settings()
 
 
 def save_settings():
@@ -93,22 +94,33 @@ def get_location():
 
 
 def get_weather(lat, lon):
-    """ Get weather information for a given latitude and longitude. """
-    if not lat or not lon:
+    if lat is None or lon is None:
         return "Weather unavailable"
     
     try:
+        # Fetch weather data from Open-Meteo API
         url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current_weather=true"
         response = requests.get(url)
         data = response.json()
 
         # Extract weather information
         weather_code = data['current_weather']['weathercode']
-        temp = data['current_weather']['temperature']
+        temp_celsius = data['current_weather']['temperature']
         
+        # Convert to Fahrenheit if necessary
+        if params["temp_unit"] == "Fahrenheit":
+            temp_fahrenheit = (temp_celsius * 9/5) + 32
+            temperature = f"{temp_fahrenheit:.1f}°F"
+        else:
+            temperature = f"{temp_celsius:.1f}°C"
+
+        # Get weather description based on the weather code
         weather_desc = weather_code_map.get(weather_code, "Unknown weather condition")
-        return f"{weather_desc}, {temp}°C"
+        return f"{weather_desc}, {temperature}"
+
     except Exception as e:
+        # Print the full traceback for debugging
+        print("Error fetching weather:")
         return "Weather unavailable"
 
 
@@ -167,6 +179,10 @@ def ui():
         params["add_weather"] = value
         save_settings()
 
+    def update_temp_unit(value):
+        params["temp_unit"] = value
+        save_settings()
+
     with gr.Accordion("Locality Settings", open=False):
         add_time_checkbox = gr.Checkbox(
             label="Add Current Time", value=params["add_time"]
@@ -183,6 +199,12 @@ def ui():
         add_weather_checkbox = gr.Checkbox(
             label="Add Weather", value=params["add_weather"]
         )
+        temp_unit_dropdown = gr.Dropdown(
+            label="Temperature Unit",
+            choices=["Celsius", "Fahrenheit"],
+            value=params["temp_unit"],
+            interactive=True
+        )
         timezone_dropdown = gr.Dropdown(
             label="Select Timezone",
             choices=pytz.all_timezones,
@@ -194,7 +216,9 @@ def ui():
         add_timezone_checkbox.change(update_add_timezone, add_timezone_checkbox, None)
         add_location_checkbox.change(update_add_location, add_location_checkbox, None)
         add_weather_checkbox.change(update_add_weather, add_weather_checkbox, None)
+        temp_unit_dropdown.change(update_temp_unit, temp_unit_dropdown, None)
         timezone_dropdown.change(update_timezone, timezone_dropdown, None)
+
 
 
 setup()
