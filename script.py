@@ -6,6 +6,7 @@ import geocoder
 import requests
 import gradio as gr
 
+
 # Define extension path (directory where the script is located)
 extension_path = os.path.dirname(os.path.abspath(__file__))
 
@@ -218,7 +219,6 @@ def ui():
         add_weather_checkbox.change(update_add_weather, add_weather_checkbox, None)
         temp_unit_dropdown.change(update_temp_unit, temp_unit_dropdown, None)
         timezone_dropdown.change(update_timezone, timezone_dropdown, None)
-
 
 
 setup()
