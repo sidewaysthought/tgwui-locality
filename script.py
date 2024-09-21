@@ -2,11 +2,29 @@
 This script is an extension for Text Generation WebUI
 """
 
+import json
 import datetime
 import pytz
 import geocoder
 import requests
 import gradio as gr
+import os
+
+# Get the path of the current script (script.py)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Define the path for the settings file
+SETTINGS_FILE = "settings.json"
+
+# Default settings
+default_params = {
+    "add_time": True,
+    "add_date": True,
+    "add_timezone": True,
+    "add_location": True,
+    "add_weather": True,
+    "timezone": "UTC"  # Default timezone
+}
 
 # Open Meteo weather code map
 weather_code_map = {
@@ -51,6 +69,17 @@ params = {
     "timezone": "UTC"
 }
 
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        with open(SETTINGS_FILE, 'r') as f:
+            return json.load(f)
+    else:
+        return default_params
+    
+def save_settings():
+    with open(SETTINGS_FILE, 'w') as f:
+        json.dump(params, f)
+
 def get_location():
     try:
         g = geocoder.ip('me')
@@ -71,7 +100,6 @@ def get_weather(lat, lon):
         weather_code = data['current_weather']['weathercode']
         temp = data['current_weather']['temperature']
         
-        # Get the description from the weather code map
         weather_desc = weather_code_map.get(weather_code, "Unknown weather condition")
         return f"{weather_desc}, {temp}°C"
     except Exception as e:
@@ -101,30 +129,35 @@ def chat_input_modifier(text, visible_text, state):
             weather = get_weather(latlng[0], latlng[1])
             additions.append(f"Weather: {weather}")
     
-    # Append metadata only to the model's input, not the visible text (chat history)
     modified_text = f"{text}\n[{' | '.join(additions)}]" if additions else text
-    return modified_text, visible_text  # Leave visible_text unchanged
+    return modified_text, visible_text
 
 def ui():
     def update_add_time(value):
         params["add_time"] = value
+        save_settings()
 
     def update_add_date(value):
         params["add_date"] = value
+        save_settings()
 
     def update_add_timezone(value):
         params["add_timezone"] = value
+        save_settings()
 
     def update_timezone(value):
         params["timezone"] = value
+        save_settings()
 
     def update_add_location(value):
         params["add_location"] = value
+        save_settings()
 
     def update_add_weather(value):
         params["add_weather"] = value
+        save_settings()
 
-    with gr.Accordion("DateTime, Timezone, Location, and Weather Settings"):
+    with gr.Accordion("Locality Settings", open=False):  # Render closed by default
         add_time_checkbox = gr.Checkbox(
             label="Add Current Time", value=params["add_time"]
         )
@@ -152,3 +185,5 @@ def ui():
         add_location_checkbox.change(update_add_location, add_location_checkbox, None)
         add_weather_checkbox.change(update_add_weather, add_weather_checkbox, None)
         timezone_dropdown.change(update_timezone, timezone_dropdown, None)
+
+params = load_settings()
