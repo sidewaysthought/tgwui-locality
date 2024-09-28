@@ -5,6 +5,8 @@ import pytz
 import geocoder
 import requests
 import gradio as gr
+from babel.dates import format_datetime
+from babel import Locale
 
 
 # Define extension path (directory where the script is located)
@@ -21,7 +23,8 @@ default_params = {
     "add_location": True,
     "add_weather": True,
     "temp_unit": "Celsius",
-    "timezone": "UTC"
+    "timezone": "UTC",
+    "locale": "en_US"
 }
 
 params = default_params.copy()
@@ -126,22 +129,22 @@ def get_weather(lat, lon):
 
 
 def chat_input_modifier(text, visible_text, state):
-    """ Modifies the input text based on the user's settings. """
+    """ Modifies the input text based on the user's settings and locale. """
     additions = []
     now = datetime.datetime.now(pytz.timezone(params["timezone"]))
     
-    if params["add_time"]:
-        current_time = now.strftime("%I:%M %p")
-        additions.append(f"Current time: {current_time}")
-    
-    if params["add_date"]:
-        current_date = now.strftime("%B %d, %Y")
-        additions.append(f"Current date: {current_date}")
-    
+    # Get the user's selected locale for formatting
+    user_locale = Locale.parse(params["locale"])
+
+    if params["add_time"] or params["add_date"]:
+        # Format the date and time based on the locale
+        formatted_datetime = format_datetime(now, locale=user_locale)
+        additions.append(f"Current date and time: {formatted_datetime}")
+
     if params["add_timezone"]:
         current_timezone = params["timezone"]
         additions.append(f"Timezone: {current_timezone}")
-    
+
     if params["add_location"]:
         city, country, latlng = get_location()
         additions.append(f"Location: {city}, {country}")
@@ -180,15 +183,27 @@ def ui():
         params["temp_unit"] = value
         save_settings()
 
+    def update_locale(value):
+        params["locale"] = value
+        save_settings()
+
     with gr.Accordion("Locality Settings", open=False):
         with gr.Row():
-            with gr.Column():  # First column for date and location
+            with gr.Column(): 
+                locale_dropdown = gr.Dropdown(
+                    label="Select Locale",
+                    choices=["en_US", "fr_FR", "de_DE", "es_ES", "zh_CN", "ja_JP"],
+                    value=params["locale"],
+                    interactive=True
+                )
                 add_date_checkbox = gr.Checkbox(
                     label="Add Current Date", value=params["add_date"]
                 )
                 add_location_checkbox = gr.Checkbox(
                     label="Add Location", value=params["add_location"]
                 )
+
+            with gr.Column():
                 add_time_checkbox = gr.Checkbox(
                     label="Add Current Time", value=params["add_time"]
                 )
@@ -197,8 +212,6 @@ def ui():
                     choices=pytz.all_timezones,
                     value=params["timezone"]
                 )
-
-            with gr.Column():  # Second column for time, timezone, weather, and temperature unit
                 add_weather_checkbox = gr.Checkbox(
                     label="Add Weather", value=params["add_weather"]
                 )
@@ -210,12 +223,12 @@ def ui():
                 )
 
         # Event handling for UI interactions
+        locale_dropdown.change(update_locale, locale_dropdown, None)
         add_time_checkbox.change(update_add_time, add_time_checkbox, None)
         add_date_checkbox.change(update_add_date, add_date_checkbox, None)
         add_location_checkbox.change(update_add_location, add_location_checkbox, None)
         add_weather_checkbox.change(update_add_weather, add_weather_checkbox, None)
         temp_unit_dropdown.change(update_temp_unit, temp_unit_dropdown, None)
         timezone_dropdown.change(update_timezone, timezone_dropdown, None)
-
 
 setup()
